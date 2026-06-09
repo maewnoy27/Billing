@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ระบบวางบิล & เก็บเงิน — Billing & Payment</title>
+<style>
+  :root{
+    --bg:#f1f5f9; --card:#ffffff; --text:#1e293b; --subtext:#64748b;
+    --border:#e2e8f0; --primary:#4f46e5; --primary-d:#4338ca; --primary-soft:#eef2ff;
+    --green:#16a34a; --green-soft:#dcfce7; --amber:#d97706; --amber-soft:#fef3c7;
+    --red:#dc2626; --red-soft:#fee2e2; --sky:#0284c7; --sky-soft:#e0f2fe;
+    --sidebar:#1e1b4b; --sidebar-text:#c7d2fe; --shadow:0 1px 3px rgba(0,0,0,.08);
+  }
+  html[data-theme="dark"]{
+    --bg:#0b1120; --card:#16203a; --text:#e2e8f0; --subtext:#94a3b8;
+    --border:#283655; --primary:#6366f1; --primary-d:#818cf8; --primary-soft:#1e2748;
+    --green:#22c55e; --green-soft:#14331f; --amber:#f59e0b; --amber-soft:#3a2c0c;
+    --red:#ef4444; --red-soft:#3a1414; --sky:#38bdf8; --sky-soft:#0c2a40;
+    --sidebar:#0b1120; --sidebar-text:#a5b4fc; --shadow:0 1px 3px rgba(0,0,0,.4);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',Tahoma,'Sarabun',sans-serif;background:var(--bg);color:var(--text);font-size:14px}
+  button{font-family:inherit;cursor:pointer}
+  input,select,textarea{font-family:inherit;font-size:14px}
+  a{color:inherit}
+
+  /* ── LOGIN ── */
+  #login{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#4f46e5,#7c3aed);padding:20px}
+  .login-card{background:var(--card);border-radius:18px;padding:38px 32px;width:100%;max-width:380px;box-shadow:0 20px 50px rgba(0,0,0,.25)}
+  .login-card h1{font-size:1.5rem;text-align:center;margin-bottom:4px}
+  .login-card p{text-align:center;color:var(--subtext);margin-bottom:24px;font-size:.85rem}
+  .login-logo{font-size:2.6rem;text-align:center;margin-bottom:8px}
+
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:.82rem;color:var(--subtext);margin-bottom:5px;font-weight:600}
+  .field input,.field select,.field textarea{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:9px;background:var(--bg);color:var(--text);transition:.15s}
+  .field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+
+  .btn{padding:10px 16px;border:none;border-radius:9px;font-weight:600;background:var(--primary);color:#fff;transition:.15s;display:inline-flex;align-items:center;gap:6px;justify-content:center}
+  .btn:hover{background:var(--primary-d)}
+  .btn-block{width:100%}
+  .btn-ghost{background:transparent;color:var(--text);border:1px solid var(--border)}
+  .btn-ghost:hover{background:var(--bg)}
+  .btn-green{background:var(--green)} .btn-green:hover{filter:brightness(.92)}
+  .btn-red{background:var(--red)} .btn-red:hover{filter:brightness(.92)}
+  .btn-sm{padding:6px 10px;font-size:.8rem;border-radius:7px}
+
+  /* ── LAYOUT ── */
+  #app{display:none;min-height:100vh}
+  .layout{display:flex;min-height:100vh}
+  .sidebar{width:230px;background:var(--sidebar);color:var(--sidebar-text);padding:20px 0;position:sticky;top:0;height:100vh;flex-shrink:0;display:flex;flex-direction:column}
+  .brand{padding:0 22px 18px;font-size:1.15rem;font-weight:700;color:#fff;display:flex;align-items:center;gap:8px}
+  .nav-item{display:flex;align-items:center;gap:11px;padding:11px 22px;cursor:pointer;transition:.15s;border-left:3px solid transparent;font-size:.92rem}
+  .nav-item:hover{background:rgba(255,255,255,.06);color:#fff}
+  .nav-item.active{background:rgba(255,255,255,.1);border-left-color:var(--primary-d);color:#fff}
+  .nav-item .ic{font-size:1.1rem;width:22px;text-align:center}
+  .nav-badge{margin-left:auto;background:var(--red);color:#fff;border-radius:10px;font-size:.68rem;padding:1px 7px;font-weight:700}
+  .sidebar-foot{margin-top:auto;padding:14px 22px;font-size:.78rem;border-top:1px solid rgba(255,255,255,.08)}
+
+  .main{flex:1;min-width:0;display:flex;flex-direction:column}
+  .topbar{height:60px;background:var(--card);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 24px;gap:14px;position:sticky;top:0;z-index:30}
+  .topbar h2{font-size:1.2rem;flex:1}
+  .icon-btn{background:var(--bg);border:1px solid var(--border);border-radius:9px;width:38px;height:38px;font-size:1.1rem;display:flex;align-items:center;justify-content:center;color:var(--text)}
+  .icon-btn:hover{border-color:var(--primary)}
+  .hamburger{display:none}
+  .content{padding:24px;flex:1}
+
+  /* ── CARDS / KPI ── */
+  .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:22px}
+  .kpi{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;box-shadow:var(--shadow)}
+  .kpi .label{font-size:.8rem;color:var(--subtext);display:flex;align-items:center;gap:6px}
+  .kpi .value{font-size:1.7rem;font-weight:700;margin-top:8px}
+  .kpi .sub{font-size:.75rem;color:var(--subtext);margin-top:3px}
+  .kpi .ic{font-size:1.05rem}
+
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;box-shadow:var(--shadow);margin-bottom:20px}
+  .card-h{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+  .card-h h3{font-size:1.05rem;flex:1}
+
+  .grid2{display:grid;grid-template-columns:1.4fr 1fr;gap:20px}
+  @media(max-width:900px){.grid2{grid-template-columns:1fr}}
+
+  /* ── TABLE ── */
+  .table-wrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:.88rem}
+  th,td{padding:11px 12px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
+  th{font-size:.76rem;text-transform:uppercase;letter-spacing:.03em;color:var(--subtext);font-weight:700}
+  tbody tr:hover{background:var(--bg)}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+  .empty{text-align:center;padding:36px;color:var(--subtext)}
+
+  .badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:.76rem;font-weight:700}
+  .badge.pending{background:var(--amber-soft);color:var(--amber)}
+  .badge.paid{background:var(--green-soft);color:var(--green)}
+  .badge.overdue{background:var(--red-soft);color:var(--red)}
+  .dot{width:7px;height:7px;border-radius:50%;background:currentColor}
+
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+  .toolbar input,.toolbar select{padding:9px 12px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--text)}
+  .toolbar .search{flex:1;min-width:180px}
+  .spacer{flex:1}
+  .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{padding:6px 14px;border-radius:20px;border:1px solid var(--border);background:var(--card);font-size:.82rem;font-weight:600;color:var(--subtext)}
+  .chip.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+
+  /* ── MODAL ── */
+  .modal-bg{position:fixed;inset:0;background:rgba(15,23,42,.55);display:none;align-items:flex-start;justify-content:center;padding:30px 16px;z-index:50;overflow-y:auto}
+  .modal-bg.show{display:flex}
+  .modal{background:var(--card);border-radius:16px;width:100%;max-width:760px;box-shadow:0 25px 60px rgba(0,0,0,.35);animation:pop .15s ease}
+  .modal.sm{max-width:440px}
+  @keyframes pop{from{transform:translateY(-12px);opacity:0}to{transform:none;opacity:1}}
+  .modal-h{padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+  .modal-h h3{flex:1;font-size:1.1rem}
+  .modal-b{padding:22px}
+  .modal-f{padding:16px 22px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end}
+  .close-x{background:none;border:none;font-size:1.4rem;color:var(--subtext);line-height:1}
+
+  .form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:560px){.form-row{grid-template-columns:1fr}}
+
+  /* invoice items editor */
+  .items-table{width:100%;font-size:.85rem;margin-top:6px}
+  .items-table input{width:100%;padding:7px 8px;border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--text)}
+  .items-table td{padding:5px 4px;border:none}
+  .item-x{background:var(--red-soft);color:var(--red);border:none;border-radius:6px;width:30px;height:32px;font-size:1rem}
+  .totbox{margin-top:14px;margin-left:auto;max-width:300px;font-size:.9rem}
+  .totbox .r{display:flex;justify-content:space-between;padding:4px 0}
+  .totbox .r.big{font-size:1.15rem;font-weight:700;border-top:2px solid var(--border);margin-top:6px;padding-top:8px}
+
+  /* toast */
+  #toast{position:fixed;bottom:24px;right:24px;z-index:100;display:flex;flex-direction:column;gap:10px}
+  .toast{background:var(--card);border:1px solid var(--border);border-left:4px solid var(--primary);border-radius:10px;padding:13px 18px;box-shadow:0 10px 30px rgba(0,0,0,.18);min-width:240px;animation:slidein .2s ease;font-size:.88rem}
+  .toast.ok{border-left-color:var(--green)} .toast.err{border-left-color:var(--red)} .toast.warn{border-left-color:var(--amber)}
+  @keyframes slidein{from{transform:translateX(40px);opacity:0}to{transform:none;opacity:1}}
+
+  .muted{color:var(--subtext)}
+  .row-actions{display:flex;gap:6px}
+  .link-btn{background:none;border:none;color:var(--primary);font-weight:600;padding:4px 6px;border-radius:6px}
+  .link-btn:hover{background:var(--primary-soft)}
+  .link-btn.danger{color:var(--red)}
+  .bars{display:flex;align-items:flex-end;gap:6px;height:180px;padding-top:10px}
+  .bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
+  .bar-stack{width:100%;display:flex;flex-direction:column;justify-content:flex-end;height:150px;gap:2px}
+  .bar{width:100%;background:var(--primary);border-radius:4px 4px 0 0;min-height:2px;transition:.2s}
+  .bar.income{background:var(--green)}
+  .bar-lbl{font-size:.66rem;color:var(--subtext);transform:rotate(-35deg);transform-origin:center;white-space:nowrap;margin-top:8px}
+  .legend{display:flex;gap:16px;font-size:.8rem;margin-top:6px}
+  .legend span{display:flex;align-items:center;gap:6px}
+  .legend i{width:12px;height:12px;border-radius:3px;display:inline-block}
+
+  @media(max-width:780px){
+    .sidebar{position:fixed;left:-240px;z-index:60;transition:.2s} .sidebar.open{left:0}
+    .hamburger{display:flex} .grid2{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+
+<!-- ════════ LOGIN ════════ -->
+<div id="login">
+  <form class="login-card" onsubmit="doLogin(event)">
+    <div class="login-logo">🧾</div>
+    <h1>ระบบวางบิล &amp; เก็บเงิน</h1>
+    <p>Billing &amp; Payment System</p>
+    <div class="field"><label>ชื่อผู้ใช้</label><input id="lg-user" value="admin" autocomplete="username"></div>
+    <div class="field"><label>รหัสผ่าน</label><input id="lg-pass" type="password" value="admin1234" autocomplete="current-password"></div>
+    <button class="btn btn-block" type="submit">เข้าสู่ระบบ</button>
+    <p style="margin-top:14px;font-size:.78rem">ค่าเริ่มต้น: admin / admin1234</p>
+  </form>
+</div>
+
+<!-- ════════ APP ════════ -->
+<div id="app">
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">🧾 BillPay</div>
+    <div class="nav-item active" data-page="dashboard" onclick="go('dashboard')"><span class="ic">📊</span> แดชบอร์ด</div>
+    <div class="nav-item" data-page="invoices" onclick="go('invoices')"><span class="ic">📄</span> ใบวางบิล</div>
+    <div class="nav-item" data-page="receipts" onclick="go('receipts')"><span class="ic">🧾</span> ใบเสร็จรับเงิน</div>
+    <div class="nav-item" data-page="customers" onclick="go('customers')"><span class="ic">👥</span> ลูกค้า</div>
+    <div class="nav-item" data-page="reminders" onclick="go('reminders')"><span class="ic">🔔</span> แจ้งเตือน/ติดตาม <span class="nav-badge" id="nav-due" style="display:none">0</span></div>
+    <div class="nav-item" data-page="reports" onclick="go('reports')"><span class="ic">📈</span> รายงาน</div>
+    <div class="nav-item" data-page="settings" onclick="go('settings')"><span class="ic">⚙️</span> ตั้งค่า</div>
+    <div class="sidebar-foot">
+      เข้าใช้งานในชื่อ <b id="who">admin</b><br>
+      <a href="#" onclick="logout();return false" style="color:var(--primary-d)">ออกจากระบบ</a>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <button class="icon-btn hamburger" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+      <h2 id="pageTitle">แดชบอร์ด</h2>
+      <button class="icon-btn" onclick="toggleTheme()" title="สลับธีม" id="themeBtn">🌙</button>
+    </div>
+    <div class="content" id="content"></div>
+  </div>
+</div>
+</div>
+
+<div class="modal-bg" id="modalBg"><div class="modal" id="modalBox"></div></div>
+<div id="toast"></div>
+
+<script>
+/* ════════════════ helpers ════════════════ */
+const $ = s => document.querySelector(s);
+const api = async (url, opt={}) => {
+  const r = await fetch(url, { headers:{'Content-Type':'application/json'}, ...opt });
+  if (r.status === 401){ showLogin(); throw new Error('unauthorized'); }
+  return r.json();
+};
+const money = n => Number(n||0).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2});
+const esc = s => String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const STATUS_TH = {pending:'รอชำระ',paid:'ชำระแล้ว',overdue:'ค้างชำระ'};
+const badge = s => `<span class="badge ${s}"><span class="dot"></span>${STATUS_TH[s]||s}</span>`;
+const todayStr = () => new Date().toISOString().slice(0,10);
+function toast(msg,type='ok'){
+  const t=document.createElement('div'); t.className='toast '+type; t.textContent=msg;
+  $('#toast').appendChild(t); setTimeout(()=>{t.style.opacity=0;setTimeout(()=>t.remove(),300)},3200);
+}
+function openModal(html, sm=false){ $('#modalBox').className='modal'+(sm?' sm':''); $('#modalBox').innerHTML=html; $('#modalBg').classList.add('show'); }
+function closeModal(){ $('#modalBg').classList.remove('show'); }
+$('#modalBg').addEventListener('click',e=>{ if(e.target.id==='modalBg') closeModal(); });
+
+/* ════════════════ auth ════════════════ */
+async function doLogin(e){
+  e.preventDefault();
+  const r = await api('/api/auth/login',{method:'POST',body:JSON.stringify({username:$('#lg-user').value,password:$('#lg-pass').value})});
+  if(r.success){ showApp(r.username); } else { toast(r.message||'เข้าสู่ระบบไม่สำเร็จ','err'); }
+}
+async function logout(){ await api('/api/auth/logout',{method:'POST'}); showLogin(); }
+function showLogin(){ $('#login').style.display='flex'; $('#app').style.display='none'; }
+function showApp(username){
+  $('#login').style.display='none'; $('#app').style.display='block';
+  $('#who').textContent=username||'admin';
+  go('dashboard'); refreshDueBadge();
+}
+
+/* ════════════════ theme ════════════════ */
+function toggleTheme(){
+  const cur=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';
+  document.documentElement.setAttribute('data-theme',cur);
+  localStorage.setItem('billTheme',cur);
+  $('#themeBtn').textContent=cur==='dark'?'☀️':'🌙';
+}
+(function(){const t=localStorage.getItem('billTheme')||'light';document.documentElement.setAttribute('data-theme',t);})();
+
+/* ════════════════ router ════════════════ */
+const TITLES={dashboard:'แดชบอร์ด',invoices:'ใบวางบิล',receipts:'ใบเสร็จรับเงิน',customers:'ลูกค้า',reminders:'แจ้งเตือน / ติดตามการชำระ',reports:'รายงานสรุป',settings:'ตั้งค่าระบบ'};
+let CURRENT='dashboard';
+function go(page){
+  CURRENT=page;
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.page===page));
+  $('#pageTitle').textContent=TITLES[page];
+  $('#sidebar').classList.remove('open');
+  ({dashboard:renderDashboard,invoices:renderInvoices,receipts:renderReceipts,customers:renderCustomers,reminders:renderReminders,reports:renderReports,settings:renderSettings}[page])();
+}
+
+async function refreshDueBadge(){
+  try{
+    const r=await api('/api/reminders/due');
+    const n=(r.overdue?.length||0)+(r.dueSoon?.length||0);
+    const b=$('#nav-due'); b.textContent=n; b.style.display=n?'inline-block':'none';
+  }catch(_){}
+}
+
+/* ════════════════ DASHBOARD ════════════════ */
+async function renderDashboard(){
+  $('#content').innerHTML='<div class="card"><div class="empty">กำลังโหลด…</div></div>';
+  const [s,rev,top] = await Promise.all([
+    api('/api/dashboard/summary'),
+    api('/api/dashboard/revenue?period=daily&n=14'),
+    api('/api/dashboard/top-customers')
+  ]);
+  const d=s.data;
+  const kpis=`
+    <div class="kpi-grid">
+      <div class="kpi"><div class="label"><span class="ic">💰</span> รายรับวันนี้</div><div class="value" style="color:var(--green)">฿${money(d.today_income)}</div><div class="sub">รายรับเดือนนี้ ฿${money(d.month_income)}</div></div>
+      <div class="kpi"><div class="label"><span class="ic">📄</span> ยอดวางบิลรวม</div><div class="value">฿${money(d.billed_total)}</div><div class="sub">${d.invoice_count} ใบวางบิล</div></div>
+      <div class="kpi"><div class="label"><span class="ic">✅</span> เก็บเงินได้แล้ว</div><div class="value" style="color:var(--green)">฿${money(d.collected_total)}</div><div class="sub">${d.status.paid.c} ใบ ชำระแล้ว</div></div>
+      <div class="kpi"><div class="label"><span class="ic">⏳</span> ยอดค้างชำระ</div><div class="value" style="color:var(--red)">฿${money(d.outstanding_total)}</div><div class="sub">${d.status.overdue.c} ใบ ค้างชำระ · ${d.status.pending.c} ใบ รอชำระ</div></div>
+    </div>`;
+
+  const statusCard=`
+    <div class="card">
+      <div class="card-h"><h3>สถานะการชำระเงิน</h3></div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
+        ${[['pending','รอชำระ','amber'],['paid','ชำระแล้ว','green'],['overdue','ค้างชำระ','red']].map(([k,lbl,c])=>`
+          <div style="text-align:center;padding:16px;border-radius:12px;background:var(--${c}-soft)">
+            <div style="font-size:2rem;font-weight:700;color:var(--${c})">${d.status[k].c}</div>
+            <div class="muted" style="font-size:.85rem">${lbl}</div>
+            <div style="font-size:.78rem;color:var(--${c})">฿${money(d.status[k].amt)}</div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+
+  const maxV=Math.max(1,...rev.data.map(r=>Math.max(r.income,r.billed)));
+  const chart=`
+    <div class="card">
+      <div class="card-h"><h3>รายรับ vs ยอดวางบิล (14 วันล่าสุด)</h3></div>
+      <div class="bars">
+        ${rev.data.map(r=>`<div class="bar-col"><div class="bar-stack">
+          <div class="bar" style="height:${(r.billed/maxV*100)}%" title="วางบิล ฿${money(r.billed)}"></div>
+          <div class="bar income" style="height:${(r.income/maxV*100)}%" title="รับ ฿${money(r.income)}"></div>
+        </div><div class="bar-lbl">${r.label.slice(5)}</div></div>`).join('')}
+      </div>
+      <div class="legend"><span><i style="background:var(--primary)"></i>ยอดวางบิล</span><span><i style="background:var(--green)"></i>รายรับจริง</span></div>
+    </div>`;
+
+  const topCard=`
+    <div class="card">
+      <div class="card-h"><h3>ลูกค้ายอดสูงสุด</h3></div>
+      <div class="table-wrap"><table><thead><tr><th>ลูกค้า</th><th class="num">ใบบิล</th><th class="num">ยอดซื้อ</th></tr></thead><tbody>
+        ${top.data.length?top.data.map(c=>`<tr><td>${esc(c.name)}</td><td class="num">${c.invoice_count}</td><td class="num">฿${money(c.billed)}</td></tr>`).join(''):'<tr><td colspan="3" class="empty">ยังไม่มีข้อมูล</td></tr>'}
+      </tbody></table></div>
+    </div>`;
+
+  $('#content').innerHTML=kpis+statusCard+`<div class="grid2">${chart}${topCard}</div>`;
+}
+
+/* ════════════════ INVOICES ════════════════ */
+let invFilter='';
+async function renderInvoices(){
+  $('#content').innerHTML=`
+    <div class="toolbar">
+      <input class="search" id="inv-search" placeholder="🔍 ค้นหาเลขที่บิล / ลูกค้า" oninput="loadInvoiceList()">
+      <div class="chips" id="inv-chips">
+        ${[['','ทั้งหมด'],['pending','รอชำระ'],['overdue','ค้างชำระ'],['paid','ชำระแล้ว']].map(([v,l])=>`<button class="chip ${invFilter===v?'active':''}" onclick="setInvFilter('${v}')">${l}</button>`).join('')}
+      </div>
+      <div class="spacer"></div>
+      <button class="btn" onclick="openInvoiceForm()">+ สร้างใบวางบิล</button>
+    </div>
+    <div class="card" style="padding:0"><div class="table-wrap"><table id="inv-table"><thead><tr>
+      <th>เลขที่</th><th>ลูกค้า</th><th>วันที่ออก</th><th>ครบกำหนด</th><th class="num">ยอดรวม</th><th class="num">คงเหลือ</th><th>สถานะ</th><th></th>
+    </tr></thead><tbody><tr><td colspan="8" class="empty">กำลังโหลด…</td></tr></tbody></table></div></div>`;
+  loadInvoiceList();
+}
+function setInvFilter(v){ invFilter=v; document.querySelectorAll('#inv-chips .chip').forEach(c=>c.classList.remove('active')); event.target.classList.add('active'); loadInvoiceList(); }
+async function loadInvoiceList(){
+  const q=encodeURIComponent($('#inv-search')?.value||'');
+  const r=await api(`/api/invoices?status=${invFilter}&search=${q}`);
+  const tb=$('#inv-table tbody');
+  if(!r.data.length){ tb.innerHTML='<tr><td colspan="8" class="empty">ไม่พบใบวางบิล</td></tr>'; return; }
+  tb.innerHTML=r.data.map(i=>`<tr>
+    <td><b>${esc(i.invoice_no)}</b></td>
+    <td>${esc(i.customer_name)}</td>
+    <td>${i.issue_date}</td>
+    <td>${i.due_date}</td>
+    <td class="num">฿${money(i.total)}</td>
+    <td class="num">฿${money(i.outstanding)}</td>
+    <td>${badge(i.status)}</td>
+    <td class="row-actions">
+      <button class="link-btn" onclick="viewInvoice(${i.id})">เปิด</button>
+      ${i.status!=='paid'?`<button class="link-btn" style="color:var(--green)" onclick="openPay(${i.id})">รับชำระ</button>`:''}
+    </td>
+  </tr>`).join('');
+}
+
+/* ── invoice create/edit form ── */
+let formItems=[];
+async function openInvoiceForm(editId=null){
+  const cust=await api('/api/customers?limit=500');
+  const settings=(await api('/api/settings')).data;
+  let inv=null;
+  if(editId){ inv=(await api('/api/invoices/'+editId)).data; formItems=inv.items.map(it=>({...it})); }
+  else { formItems=[{description:'',quantity:1,unit_price:0}]; }
+  const opts=cust.data.map(c=>`<option value="${c.id}" ${inv&&inv.customer_id===c.id?'selected':''}>${esc(c.name)} (${esc(c.code||'')})</option>`).join('');
+  const due=inv?inv.due_date:new Date(Date.now()+Number(settings.default_due_days||30)*86400000).toISOString().slice(0,10);
+  openModal(`
+    <div class="modal-h"><h3>${editId?'แก้ไข':'สร้าง'}ใบวางบิล</h3><button class="close-x" onclick="closeModal()">×</button></div>
+    <div class="modal-b">
+      ${cust.data.length?'':'<p class="muted" style="margin-bottom:12px">⚠️ ยังไม่มีลูกค้า — กรุณาเพิ่มลูกค้าก่อน</p>'}
+      <div class="form-row">
+        <div class="field"><label>ลูกค้า *</label><select id="f-cust">${opts}</select></div>
+        <div class="field"><label>อัตราภาษี (%)</label><input id="f-tax" type="number" step="0.01" value="${inv?inv.tax_rate:settings.default_tax_rate||0}"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>วันที่ออกบิล</label><input id="f-issue" type="date" value="${inv?inv.issue_date:todayStr()}"></div>
+        <div class="field"><label>วันครบกำหนดชำระ</label><input id="f-due" type="date" value="${due}"></div>
+      </div>
+      <label style="font-size:.82rem;color:var(--subtext);font-weight:600">รายการสินค้า/บริการ</label>
+      <table class="items-table"><thead><tr>
+        <th style="text-align:left">รายการ</th><th style="width:80px">จำนวน</th><th style="width:120px">ราคา/หน่วย</th><th style="width:120px;text-align:right">รวม</th><th style="width:34px"></th>
+      </tr></thead><tbody id="f-items"></tbody></table>
+      <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="addItem()">+ เพิ่มรายการ</button>
+      <div class="form-row" style="margin-top:14px">
+        <div class="field"><label>ส่วนลด (บาท)</label><input id="f-disc" type="number" step="0.01" value="${inv?inv.discount:0}" oninput="calcTotals()"></div>
+        <div class="field"><label>หมายเหตุ</label><input id="f-note" value="${inv?esc(inv.note):''}"></div>
+      </div>
+      <div class="totbox">
+        <div class="r"><span class="muted">ยอดรวม</span><span id="t-sub">฿0.00</span></div>
+        <div class="r"><span class="muted">ส่วนลด</span><span id="t-disc">฿0.00</span></div>
+        <div class="r"><span class="muted">ภาษี</span><span id="t-tax">฿0.00</span></div>
+        <div class="r big"><span>สุทธิ</span><span id="t-total">฿0.00</span></div>
+      </div>
+    </div>
+    <div class="modal-f">
+      <button class="btn btn-ghost" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn" onclick="saveInvoice(${editId||'null'})">${editId?'บันทึกการแก้ไข':'สร้างใบวางบิล'}</button>
+    </div>`);
+  renderItems(); calcTotals();
+}
+function renderItems(){
+  $('#f-items').innerHTML=formItems.map((it,i)=>`<tr>
+    <td><input value="${esc(it.description)}" oninput="upItem(${i},'description',this.value)" placeholder="ชื่อรายการ"></td>
+    <td><input type="number" step="0.01" value="${it.quantity}" oninput="upItem(${i},'quantity',this.value)" style="text-align:right"></td>
+    <td><input type="number" step="0.01" value="${it.unit_price}" oninput="upItem(${i},'unit_price',this.value)" style="text-align:right"></td>
+    <td style="text-align:right;padding-right:8px" id="amt-${i}">฿${money((it.quantity||0)*(it.unit_price||0))}</td>
+    <td><button class="item-x" onclick="delItem(${i})">×</button></td>
+  </tr>`).join('');
+}
+function addItem(){ formItems.push({description:'',quantity:1,unit_price:0}); renderItems(); calcTotals(); }
+function delItem(i){ formItems.splice(i,1); if(!formItems.length)formItems.push({description:'',quantity:1,unit_price:0}); renderItems(); calcTotals(); }
+function upItem(i,k,v){ formItems[i][k]= k==='description'?v:Number(v); if(k!=='description'){ $('#amt-'+i).textContent='฿'+money((formItems[i].quantity||0)*(formItems[i].unit_price||0)); } calcTotals(); }
+function calcTotals(){
+  const sub=formItems.reduce((s,it)=>s+(it.quantity||0)*(it.unit_price||0),0);
+  const disc=Number($('#f-disc')?.value)||0;
+  const rate=Number($('#f-tax')?.value)||0;
+  const taxable=Math.max(sub-disc,0); const tax=taxable*rate/100; const total=taxable+tax;
+  $('#t-sub').textContent='฿'+money(sub); $('#t-disc').textContent='฿'+money(disc);
+  $('#t-tax').textContent='฿'+money(tax); $('#t-total').textContent='฿'+money(total);
+}
+async function saveInvoice(editId){
+  const body={
+    customer_id:$('#f-cust').value, issue_date:$('#f-issue').value, due_date:$('#f-due').value,
+    tax_rate:$('#f-tax').value, discount:$('#f-disc').value, note:$('#f-note').value, items:formItems
+  };
+  if(!body.customer_id){ toast('กรุณาเลือกลูกค้า','err'); return; }
+  const r=await api(editId?'/api/invoices/'+editId:'/api/invoices',{method:editId?'PUT':'POST',body:JSON.stringify(body)});
+  if(r.success){ toast(r.message,'ok'); closeModal(); loadInvoiceList(); refreshDueBadge(); }
+  else toast(r.message,'err');
+}
+
+/* ── invoice detail ── */
+async function viewInvoice(id){
+  const inv=(await api('/api/invoices/'+id)).data;
+  const settings=(await api('/api/settings')).data;
+  const itemsRows=inv.items.map((it,i)=>`<tr><td>${i+1}</td><td>${esc(it.description)}</td><td class="num">${it.quantity}</td><td class="num">฿${money(it.unit_price)}</td><td class="num">฿${money(it.amount)}</td></tr>`).join('');
+  const payRows=inv.payments.length?inv.payments.map(p=>`<tr><td><b>${esc(p.receipt_no)}</b></td><td>${p.paid_date}</td><td>${esc(p.method)}</td><td class="num">฿${money(p.amount)}</td><td><button class="link-btn" onclick="printReceipt(${p.id})">พิมพ์ใบเสร็จ</button></td></tr>`).join(''):'<tr><td colspan="5" class="empty">ยังไม่มีการชำระ</td></tr>';
+  const outstanding=(inv.total-inv.paid_amount);
+  openModal(`
+    <div class="modal-h"><h3>ใบวางบิล ${esc(inv.invoice_no)}</h3>${badge(inv.status)}<button class="close-x" onclick="closeModal()">×</button></div>
+    <div class="modal-b">
+      <div class="form-row" style="margin-bottom:14px">
+        <div><div class="muted" style="font-size:.78rem">ลูกค้า</div><b>${esc(inv.customer.name)}</b><br><span class="muted" style="font-size:.82rem">${esc(inv.customer.phone||'')} ${esc(inv.customer.email||'')}</span></div>
+        <div><div class="muted" style="font-size:.78rem">กำหนดชำระ</div><b>${inv.due_date}</b><br><span class="muted" style="font-size:.82rem">ออกบิล ${inv.issue_date}</span></div>
+      </div>
+      <div class="table-wrap"><table><thead><tr><th>#</th><th>รายการ</th><th class="num">จำนวน</th><th class="num">ราคา</th><th class="num">รวม</th></tr></thead><tbody>${itemsRows}</tbody></table></div>
+      <div class="totbox">
+        <div class="r"><span class="muted">ยอดรวม</span><span>฿${money(inv.subtotal)}</span></div>
+        <div class="r"><span class="muted">ส่วนลด</span><span>฿${money(inv.discount)}</span></div>
+        <div class="r"><span class="muted">ภาษี ${inv.tax_rate}%</span><span>฿${money(inv.tax_amount)}</span></div>
+        <div class="r big"><span>สุทธิ</span><span>฿${money(inv.total)}</span></div>
+        <div class="r"><span class="muted">ชำระแล้ว</span><span style="color:var(--green)">฿${money(inv.paid_amount)}</span></div>
+        <div class="r"><span class="muted">คงเหลือ</span><span style="color:var(--red)">฿${money(outstanding)}</span></div>
+      </div>
+      <h4 style="margin:18px 0 8px;font-size:.95rem">ประวัติการชำระ / ใบเสร็จ</h4>
+      <div class="table-wrap"><table><thead><tr><th>เลขที่ใบเสร็จ</th><th>วันที่</th><th>ช่องทาง</th><th class="num">จำนวน</th><th></th></tr></thead><tbody>${payRows}</tbody></table></div>
+    </div>
+    <div class="modal-f" style="flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" onclick="printInvoice(${id})">🖨️ พิมพ์บิล</button>
+      <button class="btn btn-ghost btn-sm" onclick="sendDoc(${id},'email','invoice')">📧 ส่งอีเมล</button>
+      <button class="btn btn-ghost btn-sm" onclick="sendDoc(${id},'sms','invoice')">💬 ส่ง SMS</button>
+      ${inv.paid_amount===0?`<button class="btn btn-ghost btn-sm" onclick="closeModal();openInvoiceForm(${id})">✏️ แก้ไข</button>`:''}
+      ${inv.paid_amount===0?`<button class="btn btn-red btn-sm" onclick="delInvoice(${id})">🗑️ ลบ</button>`:''}
+      <div class="spacer"></div>
+      ${inv.status!=='paid'?`<button class="btn btn-green" onclick="openPay(${id})">💵 รับชำระเงิน</button>`:''}
+    </div>`);
+}
+async function delInvoice(id){
+  if(!confirm('ยืนยันลบใบวางบิลนี้?')) return;
+  const r=await api('/api/invoices/'+id,{method:'DELETE'});
+  toast(r.message, r.success?'ok':'err'); if(r.success){closeModal();loadInvoiceList();refreshDueBadge();}
+}
+
+/* ── payment ── */
+async function openPay(id){
+  const inv=(await api('/api/invoices/'+id)).data;
+  const outstanding=inv.total-inv.paid_amount;
+  openModal(`
+    <div class="modal-h"><h3>รับชำระเงิน — ${esc(inv.invoice_no)}</h3><button class="close-x" onclick="closeModal()">×</button></div>
+    <div class="modal-b">
+      <p class="muted" style="margin-bottom:14px">ลูกค้า: <b>${esc(inv.customer.name)}</b> · คงเหลือ <b style="color:var(--red)">฿${money(outstanding)}</b></p>
+      <div class="form-row">
+        <div class="field"><label>จำนวนเงิน (บาท)</label><input id="p-amt" type="number" step="0.01" value="${outstanding.toFixed(2)}"></div>
+        <div class="field"><label>วันที่ชำระ</label><input id="p-date" type="date" value="${todayStr()}"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>ช่องทาง</label><select id="p-method"><option>เงินสด</option><option>โอนเงิน</option><option>บัตรเครดิต</option><option>เช็ค</option><option>QR PromptPay</option></select></div>
+        <div class="field"><label>หมายเหตุ</label><input id="p-note" placeholder="เลขอ้างอิง ฯลฯ"></div>
+      </div>
+      <p class="muted" style="font-size:.8rem">💡 ระบบจะออกใบเสร็จรับเงินอัตโนมัติเมื่อบันทึก</p>
+    </div>
+    <div class="modal-f">
+      <button class="btn btn-ghost" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn btn-green" onclick="submitPay(${id})">บันทึก & ออกใบเสร็จ</button>
+    </div>`, true);
+}
+async function submitPay(id){
+  const body={amount:$('#p-amt').value,paid_date:$('#p-date').value,method:$('#p-method').value,note:$('#p-note').value};
+  const r=await api(`/api/invoices/${id}/pay`,{method:'POST',body:JSON.stringify(body)});
+  if(r.success){
+    toast(r.message+' ('+r.receipt_no+')','ok'); closeModal();
+    if(CURRENT==='invoices')loadInvoiceList(); else if(CURRENT==='reminders')renderReminders(); else if(CURRENT==='receipts')renderReceipts();
+    refreshDueBadge();
+    if(confirm('ชำระสำเร็จ — ต้องการพิมพ์ใบเสร็จเลยหรือไม่?')) printInvoiceLatestReceipt(id);
+  } else toast(r.message,'err');
+}
+
+/* ── send email/sms ── */
+async function sendDoc(id,channel,docType){
+  const r=await api(`/api/invoices/${id}/send`,{method:'POST',body:JSON.stringify({channel,docType})});
+  toast(r.message, r.success?(r.status==='sent'?'ok':'warn'):'err');
+}
+
+/* ════════════════ RECEIPTS ════════════════ */
+async function renderReceipts(){
+  const r=await api('/api/receipts');
+  $('#content').innerHTML=`
+    <div class="card" style="padding:0"><div class="table-wrap"><table><thead><tr>
+      <th>เลขที่ใบเสร็จ</th><th>เลขที่บิล</th><th>ลูกค้า</th><th>วันที่ชำระ</th><th>ช่องทาง</th><th class="num">จำนวน</th><th></th>
+    </tr></thead><tbody>
+      ${r.data.length?r.data.map(p=>`<tr>
+        <td><b>${esc(p.receipt_no)}</b></td><td>${esc(p.invoice_no)}</td><td>${esc(p.customer_name)}</td>
+        <td>${p.paid_date}</td><td>${esc(p.method)}</td><td class="num">฿${money(p.amount)}</td>
+        <td><button class="link-btn" onclick="printReceipt(${p.id})">🖨️ พิมพ์</button></td>
+      </tr>`).join(''):'<tr><td colspan="7" class="empty">ยังไม่มีใบเสร็จ</td></tr>'}
+    </tbody></table></div></div>`;
+}
+
+/* ════════════════ CUSTOMERS ════════════════ */
+async function renderCustomers(){
+  $('#content').innerHTML=`
+    <div class="toolbar">
+      <input class="search" id="c-search" placeholder="🔍 ค้นหาชื่อ / เบอร์ / อีเมล" oninput="loadCustomers()">
+      <div class="spacer"></div>
+      <button class="btn" onclick="openCustomerForm()">+ เพิ่มลูกค้า</button>
+    </div>
+    <div class="card" style="padding:0"><div class="table-wrap"><table id="c-table"><thead><tr>
+      <th>รหัส</th><th>ชื่อลูกค้า</th><th>ติดต่อ</th><th>อีเมล</th><th class="num">ใบบิล</th><th class="num">ค้างชำระ</th><th></th>
+    </tr></thead><tbody><tr><td colspan="7" class="empty">กำลังโหลด…</td></tr></tbody></table></div></div>`;
+  loadCustomers();
+}
+async function loadCustomers(){
+  const q=encodeURIComponent($('#c-search')?.value||'');
+  const r=await api('/api/customers?search='+q+'&limit=200');
+  const tb=$('#c-table tbody');
+  tb.innerHTML=r.data.length?r.data.map(c=>`<tr>
+    <td>${esc(c.code||'')}</td><td><b>${esc(c.name)}</b></td><td>${esc(c.phone||'')}</td><td>${esc(c.email||'')}</td>
+    <td class="num">${c.invoice_count}</td><td class="num" style="color:${c.outstanding>0?'var(--red)':'inherit'}">฿${money(c.outstanding)}</td>
+    <td class="row-actions">
+      <button class="link-btn" onclick='openCustomerForm(${JSON.stringify(c)})'>แก้ไข</button>
+      <button class="link-btn danger" onclick="delCustomer(${c.id})">ลบ</button>
+    </td></tr>`).join(''):'<tr><td colspan="7" class="empty">ไม่พบลูกค้า</td></tr>';
+}
+function openCustomerForm(c=null){
+  c=c||{};
+  openModal(`
+    <div class="modal-h"><h3>${c.id?'แก้ไข':'เพิ่ม'}ข้อมูลลูกค้า</h3><button class="close-x" onclick="closeModal()">×</button></div>
+    <div class="modal-b">
+      <div class="form-row">
+        <div class="field"><label>ชื่อลูกค้า/บริษัท *</label><input id="cf-name" value="${esc(c.name||'')}"></div>
+        <div class="field"><label>ชื่อผู้ติดต่อ</label><input id="cf-contact" value="${esc(c.contact_name||'')}"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>เบอร์โทร</label><input id="cf-phone" value="${esc(c.phone||'')}"></div>
+        <div class="field"><label>อีเมล</label><input id="cf-email" type="email" value="${esc(c.email||'')}"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>เลขผู้เสียภาษี</label><input id="cf-tax" value="${esc(c.tax_id||'')}"></div>
+        <div class="field"><label>หมายเหตุ</label><input id="cf-note" value="${esc(c.note||'')}"></div>
+      </div>
+      <div class="field"><label>ที่อยู่</label><textarea id="cf-addr" rows="2">${esc(c.address||'')}</textarea></div>
+    </div>
+    <div class="modal-f">
+      <button class="btn btn-ghost" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn" onclick="saveCustomer(${c.id||'null'})">บันทึก</button>
+    </div>`);
+}
+async function saveCustomer(id){
+  const body={name:$('#cf-name').value,contact_name:$('#cf-contact').value,phone:$('#cf-phone').value,email:$('#cf-email').value,tax_id:$('#cf-tax').value,note:$('#cf-note').value,address:$('#cf-addr').value};
+  if(!body.name.trim()){ toast('กรุณากรอกชื่อลูกค้า','err'); return; }
+  const r=await api(id?'/api/customers/'+id:'/api/customers',{method:id?'PUT':'POST',body:JSON.stringify(body)});
+  toast(r.message, r.success?'ok':'err'); if(r.success){closeModal();loadCustomers();}
+}
+async function delCustomer(id){
+  if(!confirm('ยืนยันลบลูกค้ารายนี้?')) return;
+  const r=await api('/api/customers/'+id,{method:'DELETE'});
+  toast(r.message, r.success?'ok':'err'); if(r.success)loadCustomers();
+}
+
+/* ════════════════ REMINDERS ════════════════ */
+async function renderReminders(){
+  const r=await api('/api/reminders/due');
+  const section=(title,list,color,scope)=>`
+    <div class="card">
+      <div class="card-h"><h3>${title} <span class="muted">(${list.length})</span></h3>
+        ${list.length?`<button class="btn btn-sm" onclick="sendAllReminders('email','${scope}')">📧 ส่งอีเมลทั้งหมด</button>
+        <button class="btn btn-ghost btn-sm" onclick="sendAllReminders('sms','${scope}')">💬 ส่ง SMS ทั้งหมด</button>`:''}
+      </div>
+      <div class="table-wrap"><table><thead><tr><th>เลขที่</th><th>ลูกค้า</th><th>ครบกำหนด</th><th class="num">คงค้าง</th><th>สถานะ</th><th></th></tr></thead><tbody>
+        ${list.length?list.map(i=>`<tr style="border-left:3px solid var(--${color})">
+          <td><b>${esc(i.invoice_no)}</b></td><td>${esc(i.customer_name)}<br><span class="muted" style="font-size:.78rem">${esc(i.customer_email||i.customer_phone||'')}</span></td>
+          <td>${i.due_date}</td><td class="num">฿${money(i.outstanding)}</td><td>${badge(i.status)}</td>
+          <td class="row-actions">
+            <button class="link-btn" onclick="viewInvoice(${i.id})">เปิด</button>
+            <button class="link-btn" onclick="sendDoc(${i.id},'email','reminder')">เตือน</button>
+          </td></tr>`).join(''):'<tr><td colspan="6" class="empty">ไม่มีรายการ 🎉</td></tr>'}
+      </tbody></table></div>
+    </div>`;
+  $('#content').innerHTML=`
+    <p class="muted" style="margin-bottom:16px">ระบบติดตามใบวางบิลที่ <b>เกินกำหนด</b> และที่ <b>ใกล้ครบกำหนด</b>ภายใน ${r.daysBefore} วัน</p>
+    ${section('🔴 เกินกำหนดชำระ (ค้างชำระ)',r.overdue,'red','overdue')}
+    ${section('🟡 ใกล้ครบกำหนด',r.dueSoon,'amber','dueSoon')}`;
+}
+async function sendAllReminders(channel,scope){
+  const r=await api('/api/reminders/send-all',{method:'POST',body:JSON.stringify({channel,scope})});
+  toast(r.message, r.success?'ok':'err');
+}
+
+/* ════════════════ REPORTS ════════════════ */
+async function renderReports(){
+  $('#content').innerHTML='<div class="card"><div class="empty">กำลังโหลด…</div></div>';
+  const [day,month,sum]=await Promise.all([
+    api('/api/dashboard/revenue?period=daily&n=30'),
+    api('/api/dashboard/revenue?period=monthly&n=12'),
+    api('/api/dashboard/summary')
+  ]);
+  const d=sum.data;
+  const reportTable=(title,rows)=>{
+    const totInc=rows.reduce((s,r)=>s+r.income,0), totBill=rows.reduce((s,r)=>s+r.billed,0);
+    return `<div class="card">
+      <div class="card-h"><h3>${title}</h3><button class="btn btn-ghost btn-sm" onclick="exportCSV('${title}',${JSON.stringify(rows).replace(/"/g,'&quot;')})">⬇️ CSV</button></div>
+      <div class="table-wrap"><table><thead><tr><th>ช่วงเวลา</th><th class="num">ยอดวางบิล</th><th class="num">รายรับจริง</th></tr></thead><tbody>
+        ${rows.slice().reverse().map(r=>`<tr><td>${r.label}</td><td class="num">฿${money(r.billed)}</td><td class="num" style="color:var(--green)">฿${money(r.income)}</td></tr>`).join('')}
+      </tbody><tfoot><tr style="font-weight:700"><td>รวม</td><td class="num">฿${money(totBill)}</td><td class="num" style="color:var(--green)">฿${money(totInc)}</td></tr></tfoot></table></div>
+    </div>`;
+  };
+  $('#content').innerHTML=`
+    <div class="kpi-grid">
+      <div class="kpi"><div class="label">รายรับวันนี้</div><div class="value" style="color:var(--green)">฿${money(d.today_income)}</div></div>
+      <div class="kpi"><div class="label">รายรับเดือนนี้</div><div class="value" style="color:var(--green)">฿${money(d.month_income)}</div></div>
+      <div class="kpi"><div class="label">ยอดวางบิลรวม</div><div class="value">฿${money(d.billed_total)}</div></div>
+      <div class="kpi"><div class="label">ค้างเก็บทั้งหมด</div><div class="value" style="color:var(--red)">฿${money(d.outstanding_total)}</div></div>
+    </div>
+    <div class="grid2">${reportTable('รายงานรายวัน (30 วัน)',day.data)}${reportTable('รายงานรายเดือน (12 เดือน)',month.data)}</div>`;
+}
+function exportCSV(title,rows){
+  const header='ช่วงเวลา,ยอดวางบิล,รายรับจริง\n';
+  const body=rows.map(r=>`${r.label},${r.billed},${r.income}`).join('\n');
+  const blob=new Blob(['﻿'+header+body],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=title+'.csv'; a.click();
+}
+
+/* ════════════════ SETTINGS ════════════════ */
+async function renderSettings(){
+  const s=(await api('/api/settings')).data;
+  $('#content').innerHTML=`
+    <div class="card" style="max-width:680px">
+      <div class="card-h"><h3>ข้อมูลบริษัท (แสดงบนเอกสาร)</h3></div>
+      <div class="field"><label>ชื่อบริษัท</label><input id="s-name" value="${esc(s.company_name)}"></div>
+      <div class="field"><label>ที่อยู่</label><textarea id="s-addr" rows="2">${esc(s.company_address)}</textarea></div>
+      <div class="form-row">
+        <div class="field"><label>เบอร์โทร</label><input id="s-phone" value="${esc(s.company_phone)}"></div>
+        <div class="field"><label>อีเมล</label><input id="s-email" value="${esc(s.company_email)}"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>เลขผู้เสียภาษี</label><input id="s-tax" value="${esc(s.company_tax_id)}"></div>
+        <div class="field"><label>อัตราภาษีเริ่มต้น (%)</label><input id="s-rate" type="number" step="0.01" value="${esc(s.default_tax_rate)}"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>กำหนดชำระเริ่มต้น (วัน)</label><input id="s-due" type="number" value="${esc(s.default_due_days)}"></div>
+        <div class="field"><label>แจ้งเตือนก่อนครบกำหนด (วัน)</label><input id="s-remind" type="number" value="${esc(s.reminder_days_before)}"></div>
+      </div>
+      <button class="btn" style="margin-top:8px" onclick="saveSettings()">บันทึกการตั้งค่า</button>
+    </div>
+    <div class="card" style="max-width:680px">
+      <div class="card-h"><h3>เปลี่ยนรหัสผ่าน</h3></div>
+      <div class="form-row">
+        <div class="field"><label>รหัสผ่านเดิม</label><input id="pw-old" type="password"></div>
+        <div class="field"><label>รหัสผ่านใหม่</label><input id="pw-new" type="password"></div>
+      </div>
+      <button class="btn btn-ghost" onclick="changePw()">เปลี่ยนรหัสผ่าน</button>
+    </div>
+    <div class="card" style="max-width:680px">
+      <div class="card-h"><h3>บันทึกการส่งเอกสาร (อีเมล/SMS ล่าสุด)</h3><button class="btn btn-ghost btn-sm" onclick="loadNotifLog()">รีเฟรช</button></div>
+      <div class="table-wrap"><table id="notif-table"><thead><tr><th>เวลา</th><th>ช่องทาง</th><th>ผู้รับ</th><th>เอกสาร</th><th>สถานะ</th></tr></thead><tbody><tr><td colspan="5" class="empty">—</td></tr></tbody></table></div>
+    </div>`;
+  loadNotifLog();
+}
+async function saveSettings(){
+  const body={company_name:$('#s-name').value,company_address:$('#s-addr').value,company_phone:$('#s-phone').value,company_email:$('#s-email').value,company_tax_id:$('#s-tax').value,default_tax_rate:$('#s-rate').value,default_due_days:$('#s-due').value,reminder_days_before:$('#s-remind').value};
+  const r=await api('/api/settings',{method:'PUT',body:JSON.stringify(body)});
+  toast(r.success?'บันทึกการตั้งค่าสำเร็จ':'เกิดข้อผิดพลาด', r.success?'ok':'err');
+}
+async function changePw(){
+  const r=await api('/api/auth/change-password',{method:'POST',body:JSON.stringify({oldPassword:$('#pw-old').value,newPassword:$('#pw-new').value})});
+  toast(r.message, r.success?'ok':'err'); if(r.success){$('#pw-old').value='';$('#pw-new').value='';}
+}
+async function loadNotifLog(){
+  const r=await api('/api/notifications');
+  const st={sent:'<span style="color:var(--green)">ส่งแล้ว</span>',simulated:'<span style="color:var(--amber)">จำลอง</span>',failed:'<span style="color:var(--red)">ล้มเหลว</span>'};
+  $('#notif-table tbody').innerHTML=r.data.length?r.data.map(n=>`<tr>
+    <td>${new Date(n.created_at).toLocaleString('th-TH')}</td><td>${n.channel==='email'?'📧 อีเมล':'💬 SMS'}</td>
+    <td>${esc(n.recipient)}</td><td>${esc(n.invoice_no||'')} <span class="muted">(${n.doc_type})</span></td><td>${st[n.status]||n.status}</td>
+  </tr>`).join(''):'<tr><td colspan="5" class="empty">ยังไม่มีการส่งเอกสาร</td></tr>';
+}
+
+/* ════════════════ PRINT ════════════════ */
+async function printInvoice(id){
+  const inv=(await api('/api/invoices/'+id)).data;
+  const s=(await api('/api/settings')).data;
+  openPrint(docHTML(inv,s,'invoice'));
+}
+async function printInvoiceLatestReceipt(id){
+  const inv=(await api('/api/invoices/'+id)).data;
+  const s=(await api('/api/settings')).data;
+  const pay=inv.payments[inv.payments.length-1];
+  openPrint(docHTML(inv,s,'receipt',pay));
+}
+async function printReceipt(payId){
+  const all=(await api('/api/receipts')).data;
+  const pay=all.find(p=>p.id===payId);
+  const inv=(await api('/api/invoices/'+pay.invoice_id)).data;
+  const s=(await api('/api/settings')).data;
+  openPrint(docHTML(inv,s,'receipt',inv.payments.find(p=>p.id===payId)));
+}
+function docHTML(inv,s,type,pay){
+  const isReceipt=type==='receipt';
+  const title=isReceipt?'ใบเสร็จรับเงิน / RECEIPT':'ใบวางบิล / ใบแจ้งหนี้ INVOICE';
+  const docNo=isReceipt&&pay?pay.receipt_no:inv.invoice_no;
+  const itemRows=inv.items.map((it,i)=>`<tr><td>${i+1}</td><td>${esc(it.description)}</td><td style="text-align:right">${it.quantity}</td><td style="text-align:right">${money(it.unit_price)}</td><td style="text-align:right">${money(it.amount)}</td></tr>`).join('');
+  return `<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><title>${docNo}</title>
+  <style>
+    *{font-family:'Sarabun','Tahoma',sans-serif;box-sizing:border-box}
+    body{padding:36px;color:#1e293b;font-size:14px}
+    .head{display:flex;justify-content:space-between;border-bottom:3px solid #4f46e5;padding-bottom:14px;margin-bottom:18px}
+    .head h1{font-size:1.3rem;color:#4f46e5} .head .doc{text-align:right}
+    .doc h2{font-size:1.2rem} .doc .no{color:#64748b;font-size:.9rem}
+    .meta{display:flex;justify-content:space-between;margin-bottom:16px;gap:20px}
+    .box{flex:1;background:#f8fafc;border-radius:8px;padding:12px}
+    .box b{display:block;color:#64748b;font-size:.78rem;margin-bottom:4px}
+    table{width:100%;border-collapse:collapse;margin-bottom:16px}
+    th{background:#eef2ff;padding:9px;text-align:left;font-size:.82rem}
+    td{padding:8px 9px;border-bottom:1px solid #e2e8f0}
+    .tot{margin-left:auto;width:280px}
+    .tot .r{display:flex;justify-content:space-between;padding:4px 0}
+    .tot .big{font-size:1.15rem;font-weight:700;border-top:2px solid #4f46e5;margin-top:6px;padding-top:8px}
+    .stamp{margin-top:8px;display:inline-block;padding:6px 16px;border:2px solid ${inv.status==='paid'?'#16a34a':'#d97706'};color:${inv.status==='paid'?'#16a34a':'#d97706'};border-radius:8px;font-weight:700;transform:rotate(-4deg)}
+    .sign{display:flex;justify-content:space-between;margin-top:60px;text-align:center;color:#64748b}
+    .sign div{border-top:1px dotted #94a3b8;padding-top:6px;width:200px}
+    @media print{body{padding:0}.noprint{display:none}}
+  </style></head><body>
+    <div class="head">
+      <div><h1>${esc(s.company_name)}</h1><div style="color:#64748b;font-size:.85rem;white-space:pre-line">${esc(s.company_address)}</div>
+      <div style="color:#64748b;font-size:.85rem">โทร ${esc(s.company_phone)} · ${esc(s.company_email)}<br>เลขผู้เสียภาษี ${esc(s.company_tax_id)}</div></div>
+      <div class="doc"><h2>${title}</h2><div class="no">เลขที่ ${esc(docNo)}</div>
+        <div class="no">วันที่ ${isReceipt&&pay?pay.paid_date:inv.issue_date}</div>
+        <div class="stamp">${STATUS_TH[inv.status]}</div></div>
+    </div>
+    <div class="meta">
+      <div class="box"><b>ลูกค้า</b>${esc(inv.customer.name)}<br>${esc(inv.customer.address||'')}<br>${esc(inv.customer.phone||'')} ${esc(inv.customer.email||'')}${inv.customer.tax_id?'<br>เลขภาษี '+esc(inv.customer.tax_id):''}</div>
+      <div class="box"><b>รายละเอียด</b>เลขที่บิล: ${esc(inv.invoice_no)}<br>วันที่ออกบิล: ${inv.issue_date}<br>ครบกำหนดชำระ: ${inv.due_date}${isReceipt&&pay?'<br>ช่องทางชำระ: '+esc(pay.method):''}</div>
+    </div>
+    <table><thead><tr><th>#</th><th>รายการ</th><th style="text-align:right">จำนวน</th><th style="text-align:right">ราคา/หน่วย</th><th style="text-align:right">จำนวนเงิน</th></tr></thead><tbody>${itemRows}</tbody></table>
+    <div class="tot">
+      <div class="r"><span>ยอดรวม</span><span>${money(inv.subtotal)}</span></div>
+      <div class="r"><span>ส่วนลด</span><span>${money(inv.discount)}</span></div>
+      <div class="r"><span>ภาษีมูลค่าเพิ่ม ${inv.tax_rate}%</span><span>${money(inv.tax_amount)}</span></div>
+      <div class="r big"><span>ยอดสุทธิ</span><span>฿${money(inv.total)}</span></div>
+      ${isReceipt?`<div class="r"><span>รับชำระ${pay?' ('+pay.paid_date+')':''}</span><span style="color:#16a34a">฿${money(pay?pay.amount:inv.paid_amount)}</span></div>`:''}
+      <div class="r"><span>คงเหลือ</span><span>฿${money(inv.total-inv.paid_amount)}</span></div>
+    </div>
+    ${inv.note?`<p style="color:#64748b;font-size:.85rem;margin-top:10px">หมายเหตุ: ${esc(inv.note)}</p>`:''}
+    <div class="sign"><div>ผู้รับเงิน / ผู้ออกเอกสาร</div><div>ลูกค้า / ผู้ชำระเงิน</div></div>
+    <div class="noprint" style="text-align:center;margin-top:30px"><button onclick="window.print()" style="padding:10px 24px;background:#4f46e5;color:#fff;border:none;border-radius:8px;font-size:15px;cursor:pointer">🖨️ พิมพ์เอกสาร</button></div>
+  </body></html>`;
+}
+function openPrint(html){
+  const w=window.open('','_blank');
+  w.document.write(html); w.document.close();
+}
+
+/* ════════════════ boot ════════════════ */
+(async function(){
+  try{ const me=await api('/api/auth/me'); if(me.loggedIn) showApp(me.username); else showLogin(); }
+  catch(_){ showLogin(); }
+})();
+</script>
+</body>
+</html>

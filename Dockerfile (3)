@@ -1,0 +1,15 @@
+# ───────── ระบบวางบิล & เก็บเงิน (Billing & Payment System) ─────────
+# ไม่มี native module → build เร็ว ไม่ต้องใช้ python/make/g++
+FROM node:20-bookworm-slim
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install --omit=dev
+
+COPY . .
+
+# แพลตฟอร์ม (Render ฯลฯ) จะกำหนด PORT ผ่าน env ให้เอง — server อ่าน process.env.PORT
+EXPOSE 10000
+
+CMD ["node", "billing-server.js"]

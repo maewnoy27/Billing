@@ -1,0 +1,18 @@
+{
+  "name": "phone-registration-system",
+  "version": "1.0.0",
+  "description": "ระบบเก็บเบอร์โทรพร้อมระบบหลังบ้าน",
+  "main": "billing-server.js",
+  "scripts": {
+    "start": "node billing-server.js",
+    "dev": "node billing-server.js",
+    "billing": "node billing-server.js",
+    "phone-reg": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "express-session": "^1.17.3",
+    "bcryptjs": "^2.4.3",
+    "nodemailer": "^6.9.13"
+  }
+}
