@@ -1,4 +1,4 @@
-/* ============================================================
+=========================================================
  *  ระบบวางบิล & เก็บเงิน (Billing & Payment System)
  *  Backend: Express + ที่เก็บข้อมูลแบบ pure-JS (ไฟล์ JSON)
  *  ------------------------------------------------------------
@@ -321,13 +321,23 @@ app.get('/api/customers/:id', requireAuth, (req, res) => {
   res.json({ success: true, data: out });
 });
 
+function codeTaken(code, exceptId) {
+  const q = String(code).toLowerCase();
+  return store.customers.some(c => c.id !== exceptId && (c.code || '').toLowerCase() === q);
+}
+
 app.post('/api/customers', requireAuth, (req, res) => {
-  const { name, contact_name, phone, email, address, tax_id, note } = req.body;
+  const { code, name, contact_name, phone, email, address, tax_id, credit_term, billing_detail, note } = req.body;
   if (!name || !name.trim()) return res.json({ success: false, message: 'กรุณากรอกชื่อลูกค้า' });
+  let useCode = (code || '').trim();
+  if (useCode) { if (codeTaken(useCode, 0)) return res.json({ success: false, message: 'รหัสลูกค้านี้ถูกใช้แล้ว' }); }
+  else useCode = nextCustomerCode();
   const c = {
-    id: ++store.seq.customer, code: nextCustomerCode(), name: name.trim(),
+    id: ++store.seq.customer, code: useCode, name: name.trim(),
     contact_name: contact_name || '', phone: phone || '', email: email || '',
-    address: address || '', tax_id: tax_id || '', note: note || '', created_at: new Date().toISOString(),
+    address: address || '', tax_id: tax_id || '',
+    credit_term: Number(credit_term) || 0, billing_detail: billing_detail || '',
+    note: note || '', created_at: new Date().toISOString(),
   };
   store.customers.push(c); saveNow();
   res.json({ success: true, id: c.id, message: 'เพิ่มลูกค้าสำเร็จ' });
@@ -336,11 +346,16 @@ app.post('/api/customers', requireAuth, (req, res) => {
 app.put('/api/customers/:id', requireAuth, (req, res) => {
   const c = store.customers.find(x => x.id === Number(req.params.id));
   if (!c) return res.status(404).json({ success: false, message: 'ไม่พบลูกค้า' });
-  const { name, contact_name, phone, email, address, tax_id, note } = req.body;
+  const { code, name, contact_name, phone, email, address, tax_id, credit_term, billing_detail, note } = req.body;
   if (!name || !name.trim()) return res.json({ success: false, message: 'กรุณากรอกชื่อลูกค้า' });
+  let useCode = (code || '').trim();
+  if (useCode) { if (codeTaken(useCode, c.id)) return res.json({ success: false, message: 'รหัสลูกค้านี้ถูกใช้แล้ว' }); }
+  else useCode = c.code || nextCustomerCode();
   Object.assign(c, {
-    name: name.trim(), contact_name: contact_name || '', phone: phone || '', email: email || '',
-    address: address || '', tax_id: tax_id || '', note: note || '',
+    code: useCode, name: name.trim(), contact_name: contact_name || '', phone: phone || '', email: email || '',
+    address: address || '', tax_id: tax_id || '',
+    credit_term: Number(credit_term) || 0, billing_detail: billing_detail || '',
+    note: note || '',
   });
   saveNow();
   res.json({ success: true, message: 'แก้ไขข้อมูลลูกค้าสำเร็จ' });
@@ -403,21 +418,23 @@ app.get('/api/invoices/:id', requireAuth, (req, res) => {
 
 app.post('/api/invoices', requireAuth, (req, res) => {
   const s = getSettings();
-  const { customer_id, issue_date, due_date, items = [], discount = 0, tax_rate, note } = req.body;
+  const { customer_id, issue_date, due_date, items = [], discount = 0, tax_rate, note, billing_detail, credit_term } = req.body;
   if (!customer_id) return res.json({ success: false, message: 'กรุณาเลือกลูกค้า' });
   const its = cleanItems(items);
   if (its.length === 0) return res.json({ success: false, message: 'กรุณาเพิ่มรายการอย่างน้อย 1 รายการ' });
 
   const issue = issue_date || todayStr();
-  const due = due_date || new Date(Date.now() + Number(s.default_due_days || 30) * 86400000).toISOString().slice(0, 10);
+  const term = (credit_term === undefined || credit_term === '') ? Number(s.default_due_days || 30) : Number(credit_term);
+  const due = due_date || new Date(new Date(issue).getTime() + term * 86400000).toISOString().slice(0, 10);
   const rate = (tax_rate === undefined || tax_rate === '') ? Number(s.default_tax_rate || 0) : Number(tax_rate);
   const t = computeTotals(its, discount, rate);
 
   const inv = {
     id: ++store.seq.invoice, invoice_no: nextDocNo('INV'), customer_id: Number(customer_id),
-    issue_date: issue, due_date: due, status: 'pending',
+    issue_date: issue, due_date: due, credit_term: term, status: 'pending',
     subtotal: t.subtotal, discount: t.discount, tax_rate: rate, tax_amount: t.taxAmount,
-    total: t.total, paid_amount: 0, note: note || '', paid_at: null, created_at: new Date().toISOString(),
+    total: t.total, paid_amount: 0, note: note || '', billing_detail: billing_detail || '',
+    paid_at: null, created_at: new Date().toISOString(),
   };
   inv.status = deriveStatus(inv);
   store.invoices.push(inv);
@@ -430,15 +447,16 @@ app.put('/api/invoices/:id', requireAuth, (req, res) => {
   const inv = store.invoices.find(i => i.id === Number(req.params.id));
   if (!inv) return res.status(404).json({ success: false, message: 'ไม่พบใบวางบิล' });
   if (inv.paid_amount > 0) return res.json({ success: false, message: 'แก้ไขไม่ได้ เนื่องจากมีการชำระเงินบางส่วนแล้ว' });
-  const { customer_id, issue_date, due_date, items = [], discount = 0, tax_rate, note } = req.body;
+  const { customer_id, issue_date, due_date, items = [], discount = 0, tax_rate, note, billing_detail, credit_term } = req.body;
   const its = cleanItems(items);
   if (its.length === 0) return res.json({ success: false, message: 'กรุณาเพิ่มรายการอย่างน้อย 1 รายการ' });
   const rate = Number(tax_rate) || 0;
   const t = computeTotals(its, discount, rate);
   Object.assign(inv, {
     customer_id: Number(customer_id) || inv.customer_id, issue_date: issue_date || inv.issue_date,
-    due_date: due_date || inv.due_date, subtotal: t.subtotal, discount: t.discount,
-    tax_rate: rate, tax_amount: t.taxAmount, total: t.total, note: note || '',
+    due_date: due_date || inv.due_date, credit_term: (credit_term === undefined || credit_term === '') ? (inv.credit_term || 0) : Number(credit_term),
+    subtotal: t.subtotal, discount: t.discount,
+    tax_rate: rate, tax_amount: t.taxAmount, total: t.total, note: note || '', billing_detail: billing_detail || '',
   });
   store.invoice_items = store.invoice_items.filter(it => it.invoice_id !== inv.id);
   for (const it of its) store.invoice_items.push({ id: ++store.seq.item, invoice_id: inv.id, ...it });
@@ -656,3 +674,4 @@ app.listen(PORT, '0.0.0.0', () => {
 });
 
 // บันทึกข้อมูลก่อนปิดโปรเซส
+for (const sig of ['SIGTERM', 'SIGINT']) process.on(sig, () => { saveNow(); process.exit(0); });
